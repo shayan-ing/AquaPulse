@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="appTitle">AquaPulse</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/i18next@23.15.1/i18next.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/compressorjs@1.2.1/dist/compressor.min.js"></script>
+  <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+  <header>
+    <div class="header-controls">
+      <select id="language">
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+      </select>
+      <button id="theme-toggle">🌙</button>
+      <button id="profile" onclick="showScreen('profile')">👤</button>
+    </div>
+    <a href="#" data-i18n="appTitle" onclick="showScreen('home')" class="logo-link">AquaPulse</a>
+    <nav class="desktop-nav">
+      <button onclick="showScreen('home')" data-i18n="home">Home</button>
+      <button onclick="showScreen('report')" data-i18n="reports">Reports</button>
+      <button onclick="showScreen('contact')" data-i18n="contact">Contact</button>
+      <button onclick="showScreen('settings')" data-i18n="settings">Settings</button>
+    </nav>
+  </header>
+
+  <div class="container">
+    <!-- Home Screen -->
+    <div id="home" class="screen active">
+      <div class="card">
+        <h2 data-i18n="communityImpact">Community Impact</h2>
+        <div class="stats">
+          <p><strong data-i18n="savedThisMonth">Saved This Month!</strong></p>
+          <p id="water-saved">1,500L</p>
+        </div>
+      </div>
+      <div class="card map-card">
+        <h2 data-i18n="leakLocations">Leak Locations</h2>
+        <div id="map" class="map"></div>
+      </div>
+      <div class="card quick-actions">
+        <h2 data-i18n="quickActions">Quick Actions</h2>
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="showScreen('report')" data-i18n="reportLeak">Report Leak</button>
+          <button class="btn btn-primary" onclick="showScreen('verify')" data-i18n="verifyLeaks">Verify Leaks</button>
+          <button class="btn btn-primary" onclick="showScreen('leaderboard')" data-i18n="viewLeaderboard">Leaderboard</button>
+          <button class="btn btn-primary" onclick="showScreen('risk-map')" data-i18n="viewRiskMap">Risk Mapping</button>
+        </div>
+      </div>
+      <div class="card tips">
+        <h2 data-i18n="conservationTip">Weekly Conservation Tip</h2>
+        <p data-i18n="tipContent">Fix dripping faucets to save up to 15L per day!</p>
+      </div>
+    </div>
+
+    <!-- Report Leak Screen -->
+    <div id="report" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="reportLeakTitle">Report a Leak</h2>
+      </div>
+      <div class="card">
+        <form id="report-form">
+          <label for="leak-desc" data-i18n="describeLeak">Describe the leak</label>
+          <input type="text" id="leak-desc" required>
+          <select id="report-language" class="language-select">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
+          <div class="media-buttons">
+            <label class="media-btn">
+              <span data-i18n="addPhoto">Add Photo</span>
+              <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+            </label>
+            <label class="media-btn">
+              <span data-i18n="addVideo">Add Video</span>
+              <input type="file" id="video-upload" accept="video/*" style="display: none;">
+            </label>
+            <button type="button" class="media-btn" onclick="startVoiceInput()" data-i18n="voiceInput">Voice Input</button>
+          </div>
+          <div id="severity" style="display: none;" data-i18n="severity">Severity: Minor</div>
+          <label for="location" data-i18n="location">Location</label>
+          <input type="text" id="location" readonly>
+          <label>
+            <input type="checkbox" id="anonymous">
+            <span data-i18n="anonymousReport">Report Anonymously</span>
+          </label>
+          <button type="submit" class="btn btn-primary" data-i18n="submitReport">Submit Report</button>
+          <div id="offline-warning" style="display: none;" data-i18n="offlineWarning">Report will sync when online.</div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Verify Leak Screen -->
+    <div id="verify" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="verifyLeakTitle">Verify a Leak</h2>
+      </div>
+      <div class="card leak-card">
+        <div id="verify-map" class="map"></div>
+        <p><strong data-i18n="reported">Reported:</strong> 2025-05-10</p>
+        <p><strong data-i18n="description">Description:</strong> Minor pipe leak near the park.</p>
+        <p><strong data-i18n="distance">Distance:</strong> 100m</p>
+        <p><strong data-i18n="status">Status:</strong> <span id="leak-status">Pending</span></p>
+        <p class="photo-preview" data-i18n="photoPreview">Photo Preview</p>
+        <p><strong data-i18n="verificationProgress">Verification Progress:</strong></p>
+        <div class="progress-bar"><div></div></div>
+        <div class="official-badge" style="display: none;" data-i18n="officialVerified">Official Verified</div>
+        <label for="comments" data-i18n="comments">Additional comments</label>
+        <input type="text" id="comments">
+        <button class="btn btn-primary" onclick="verifyLeak(true)" data-i18n="confirmLeak">Confirm Leak</button>
+        <button class="btn btn-error" onclick="verifyLeak(false)" data-i18n="markFalse">Mark as False</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard Screen -->
+    <div id="leaderboard" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="leaderboardTitle">Leaderboard & Rewards</h2>
+      </div>
+      <div class="card">
+        <h3 data-i18n="topReporters">Top Reporters</h3>
+        <div class="leaderboard-list">
+          <div>User A - 50 Reports</div>
+          <div>User B - 45 Reports</div>
+          <div>User C - 40 Reports</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 data-i18n="badges">Badges</h3>
+        <div class="badges">
+          <span class="badge accent-bg" data-i18n="aquaHero">Aqua Hero</span>
+          <span class="badge accent-bg" data-i18n="firstReport">First Report</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Rewards</h3>
+        <div class="rewards">
+          <div class="reward-card">
+            <p data-i18n="treeSapling">Tree Sapling</p>
+            <button class="btn btn-accent" data-i18n="redeemNow">Redeem Now</button>
+          </div>
+          <div class="reward-card">
+            <p data-i18n="waterKit">Water Kit</p>
+            <button class="btn btn-accent" data-i18n="redeemNow">Redeem Now</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="shareAchievement()" data-i18n="shareAchievement">Share Achievement</button>
+      </div>
+    </div>
+
+    <!-- Risk Map Screen -->
+    <div id="risk-map" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="riskMapTitle">Risk Mapping</h2>
+      </div>
+      <div class="card">
+        <h3 data-i18n="statsOverview">Statistics Overview</h3>
+        <div class="stats-overview">
+          <p><strong data-i18n="highRiskZones">High-Risk Zones:</strong> 5</p>
+          <p><strong data-i18n="nextLikely">Next Likely (Location):</strong> Park Area</p>
+        </div>
+      </div>
+      <div class="card map-card">
+        <div id="risk-map-container" class="map"></div>
+      </div>
+      <div class="card">
+        <h3 data-i18n="recentAlerts">Recent Alerts</h3>
+        <div class="recent-alerts">
+          <div class="alert high-risk">High Risk - Park Area</div>
+          <div class="alert potential-risk">Potential Risk - Main Street</div>
+          <div class="alert low-risk">Low Risk - Suburb</div>
+        </div>
+      </div>
+      <div class="card filters">
+        <h3 data-i18n="additionalFilters">Additional Filters</h3>
+        <label>
+          <input type="checkbox" id="verified-filter">
+          <span data-i18n="verified">Verified</span>
+        </label>
+        <label>
+          <input type="checkbox" id="unverified-filter">
+          <span data-i18n="unverified">Unverified</span>
+        </label>
+        <button class="btn btn-primary" data-i18n="downloadReport">Download Report</button>
+      </div>
+    </div>
+
+    <!-- User Profile Screen -->
+    <div id="profile" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="profileTitle">User Profile</h2>
+      </div>
+      <div class="card profile-details">
+        <div class="profile-header">
+          <div class="profile-picture" id="profile-picture">A</div>
+          <div>
+            <h3 class="view-mode" id="user-name">Aqua User</h3>
+            <p class="view-mode" id="user-email">aquauser@example.com</p>
+            <p class="view-mode" id="user-location">Location: Not Set</p>
+          </div>
+        </div>
+        <div class="edit-mode">
+          <label for="edit-user-name">Name</label>
+          <input type="text" id="edit-user-name">
+          <label for="edit-bio" data-i18n="aboutMe">About Me</label>
+          <textarea id="edit-bio"></textarea>
+        </div>
+        <div class="profile-bio view-mode">
+          <h3 data-i18n="aboutMe">About Me</h3>
+          <p id="user-bio">I’m passionate about water conservation and helping my community reduce water waste!</p>
+        </div>
+        <div class="impact-stats">
+          <h3 data-i18n="yourImpact">Your Impact</h3>
+          <div>
+            <strong data-i18n="waterSaved">Water Saved:</strong>
+            <span id="user-water-saved">500L</span>
+          </div>
+          <div>
+            <strong data-i18n="pointsEarned">Points Earned:</strong>
+            <span id="user-points">150</span>
+          </div>
+          <div>
+            <strong>Reports Submitted:</strong>
+            <span id="user-reports">5</span>
+          </div>
+          <div>
+            <strong>Leaks Verified:</strong>
+            <span id="user-verifications">3</span>
+          </div>
+          <div>
+            <strong>Member Since:</strong>
+            <span id="user-joined">January 2025</span>
+          </div>
+        </div>
+        <div class="additional-info">
+          <h3 data-i18n="preferencesStats">Preferences & Stats</h3>
+          <div>
+            <strong data-i18n="preferredLanguage">Preferred Language:</strong>
+            <span id="user-language">English</span>
+          </div>
+          <div>
+            <strong data-i18n="favoriteTip">Favorite Tip:</strong>
+            <span id="user-favorite-tip">Fix dripping faucets to save up to 15L per day!</span>
+          </div>
+          <div>
+            <strong data-i18n="emailNotifications">Email Notifications:</strong>
+            <span id="user-email-notifications">Enabled</span>
+          </div>
+          <div>
+            <strong data-i18n="pushNotifications">Push Notifications:</strong>
+            <span id="user-push-notifications">Enabled</span>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge accent-bg" data-i18n="aquaHero">Aqua Hero</span>
+          <span class="badge accent-bg" data-i18n="firstReport">First Report</span>
+        </div>
+        <button class="btn btn-primary view-mode" onclick="toggleEditProfile()" data-i18n="editProfile">Edit Profile</button>
+        <button class="btn btn-primary edit-mode" onclick="saveProfile()" data-i18n="save">Save</button>
+        <button class="btn btn-error" onclick="logout()" data-i18n="logout">Logout</button>
+      </div>
+    </div>
+
+    <!-- Contact Screen -->
+    <div id="contact" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="contactSupport">Contact Support</h2>
+      </div>
+      <div class="card">
+        <h3 data-i18n="followUs">Follow Us</h3>
+        <div class="social-links">
+          <a href="#">Twitter</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+        <h3 data-i18n="sendMessage">Send Us a Message</h3>
+        <div class="contact-form">
+          <input type="text" id="contact-name" data-i18n="[placeholder]yourName" placeholder="Your Name">
+          <input type="email" id="contact-email" data-i18n="[placeholder]yourEmail" placeholder="Your Email">
+          <textarea id="contact-message" data-i18n="[placeholder]yourMessage" placeholder="Your Message"></textarea>
+          <button class="btn btn-primary" onclick="submitContactForm()" data-i18n="submit">Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings" class="screen">
+      <div class="screen-header">
+        <span class="back-icon" onclick="showScreen('home')">⬅</span>
+        <h2 data-i18n="settings">Settings</h2>
+      </div>
+      <div class="card">
+        <h3 data-i18n="accountSettings">Account Settings</h3>
+        <label>
+          <span data-i18n="emailNotifications">Email Notifications</span>
+          <input type="checkbox" id="email-notifications" checked>
+        </label>
+        <label>
+          <span data-i18n="pushNotifications">Push Notifications</span>
+          <input type="checkbox" id="push-notifications">
+        </label>
+      </div>
+      <div class="card">
+        <h3 data-i18n="appPreferences">App Preferences</h3>
+        <label>
+          <span data-i18n="language">Language</span>
+          <select id="settings-language" class="language-select">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </label>
+        <label>
+          <span data-i18n="theme">Theme</span>
+          <select id="settings-theme">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <label>
+          <span data-i18n="dataUsage">Data Usage</span>
+          <label>
+            <span data-i18n="lowBandwidthMode">Low Bandwidth Mode</span>
+            <input type="checkbox" id="low-bandwidth-mode">
+          </label>
+        </label>
+        <button class="btn btn-primary" onclick="saveSettings()" data-i18n="save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav">
+    <button onclick="showScreen('home')">
+      <span>🏠</span>
+      <span data-i18n="home">Home</span>
+    </button>
+    <button onclick="showScreen('report')">
+      <span>📝</span>
+      <span data-i18n="reports">Reports</span>
+    </button>
+    <button onclick="showScreen('contact')">
+      <span>📞</span>
+      <span data-i18n="contact">Contact</span>
+    </button>
+    <button onclick="showScreen('settings')">
+      <span>⚙️</span>
+      <span data-i18n="settings">Settings</span>
+    </button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
